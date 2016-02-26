@@ -10,10 +10,10 @@
 
 $('.post-menu').each(function() {
   var $this = $(this);
-  var answerId = $this.find('a.short-link').attr('id').split('-')[2];
+  var postId = $this.find('a.short-link').attr('id').split('-')[2];
   $this.append($('<span>').attr('class', 'lsep').html('|'));
   $this.append($('<a>').attr({
     'class': 'timeline-link', 
-    'href': '/posts/' + answerId + '/timeline'
+    'href': '/posts/' + postId + '/timeline'
   }).html('timeline'));
 });
