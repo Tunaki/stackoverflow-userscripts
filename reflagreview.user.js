@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Reflag Review
 // @namespace    https://github.com/Tunaki/stackoverflow-userscripts
-// @version      0.1
-// @description  In the flag history, keeps only non-deleted NAA/VLQ helpful-flagged answers and loads them to review and potentially ask for reflags
+// @version      0.2
+// @description  In the flag history, keeps only NAA/VLQ helpful-flagged answers and loads them to review and potentially ask for reflags
 // @author       Tunaki
 // @include      /^https?:\/\/\w*.?(stackexchange.com|stackoverflow.com|serverfault.com|superuser.com|askubuntu.com|stackapps.com|mathoverflow.net)\/users\/flag-summary\/\d+/
 // @grant        none
@@ -11,6 +11,8 @@
 StackExchange.using("inlineEditing", function () {
   StackExchange.inlineEditing.init();
 });
+
+var questionLoaded = false;
 
 $('#mainbar.user-flag-history').prepend(
   $('<div>').append(
@@ -28,13 +30,20 @@ $('#mainbar.user-flag-history').prepend(
 );
 
 function loadAnswerInto(answerId, questionId, $element) {
-  $.get('/posts/ajax-load-realtime/' + answerId, function(data) {
-    $element.html(data);
-    StackExchange.question.init({
-      canViewVoteCounts: true,
-      questionId: questionId
+  $.get('/posts/' + questionId + '/votes', function(votes) {
+    $.get('/posts/ajax-load-realtime/' + answerId, function(data) {
+      $element.html(data);
+      if (!questionLoaded) {
+        StackExchange.question.init({
+          votesCast: votes,
+          canViewVoteCounts: true,
+          questionId: questionId,
+          canOpenBounty: true
+        });
+      }
+      questionLoaded = true;
+      StackExchange.realtime.subscribeToQuestion(StackExchange.options.site.id, questionId);
+      $element.find('.js-show-link.comments-link').click();
     });
-    StackExchange.realtime.subscribeToQuestion('1', questionId);
-    $element.find('.js-show-link.comments-link').click();
   });
 }
