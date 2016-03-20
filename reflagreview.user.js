@@ -12,28 +12,26 @@ StackExchange.using("inlineEditing", function () {
   StackExchange.inlineEditing.init();
 });
 
-var questionLoaded = false;
-
 $('#mainbar.user-flag-history').prepend(
   $('<div>').append(
     $('<a>').attr('href', '#').click(function() {
       $('.flagged-post').hide();
       $('.flagged-post').filter(':has(.Helpful):not(:has(.deleted-answer))').filter(function() {
         return $.inArray($('.revision-comment', this).html(), ['not an answer', 'very low quality']) != -1 && $('.mod-flag', this).length == 1;
-      }).each(function() {
+      }).each(function(index) {
         var href = $('.answer-hyperlink', this).attr('href');
-        loadAnswerInto(href.split('#')[1], href.split('\/')[2], $(this));
+        loadAnswerInto(index, href.split('#')[1], href.split('\/')[2], $(this));
       }).show();
       $(this).remove();
     }).html('reflags')
   ).css('padding-bottom', '10px')
 );
 
-function loadAnswerInto(answerId, questionId, $element) {
+function loadAnswerInto(index, answerId, questionId, $element) {
   $.get('/posts/' + questionId + '/votes', function(votes) {
     $.get('/posts/ajax-load-realtime/' + answerId, function(data) {
       $element.html(data);
-      if (!questionLoaded) {
+      if (index == 0) {        
         StackExchange.question.init({
           votesCast: votes,
           canViewVoteCounts: true,
@@ -41,7 +39,6 @@ function loadAnswerInto(answerId, questionId, $element) {
           canOpenBounty: true
         });
       }
-      questionLoaded = true;
       StackExchange.realtime.subscribeToQuestion(StackExchange.options.site.id, questionId);
       $element.find('.js-show-link.comments-link').click();
     });
