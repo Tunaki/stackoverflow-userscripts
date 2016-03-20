@@ -8,24 +8,22 @@
 // @grant        none
 // ==/UserScript==
 
-let funcs = {};
-
-funcs.addXHRListener = callback => {
-    let open = XMLHttpRequest.prototype.open;
-    XMLHttpRequest.prototype.open = function() {
-        this.addEventListener('load', callback.bind(null, this), false);
-        open.apply(this, arguments);
-    };
+function addXHRListener(callback) {
+  let open = XMLHttpRequest.prototype.open;
+  XMLHttpRequest.prototype.open = function() {
+    this.addEventListener('load', callback.bind(null, this), false);
+    open.apply(this, arguments);
+  };
 };
 
-funcs.addXHRListener(xhr => {
-    if (/ajax-load-realtime/.test(xhr.responseURL)) {
-        addTimelineLink();
-    }
-});
-
-function addTimelineLink() {  
-  $('.post-menu:not(:has(.timeline-link))').each(function() {
+function addTimelineLink(postId) {
+  var $posts;
+  if(!postId) {
+    $posts = $('.post-menu');
+  } else {
+    $posts = $('[data-questionid="' + postId + '"] .post-menu,[data-answerid="' + postId + '"] .post-menu');
+  }
+  $posts.each(function() {
     var $this = $(this);
     var postId = $this.find('a.short-link').attr('id').split('-')[2];
     $this.append($('<span>').attr('class', 'lsep').html('|'));
@@ -34,6 +32,21 @@ function addTimelineLink() {
       'href': '/posts/' + postId + '/timeline'
     }).html('timeline'));
   });
-}
+};
 
-addTimelineLink();
+addXHRListener(function(xhr) {
+  if (/ajax-load-realtime/.test(xhr.responseURL)) {
+    let matches = /question" data-questionid="(\d+)/.exec(xhr.responseText);
+    if (matches === null) {
+      matches = /answer" data-answerid="(\d+)/.exec(xhr.responseText);
+      if (matches === null) {
+        return;
+      }
+    }
+    addTimelineLink(matches[1]);
+  }
+});
+
+$(document).ready(function() {
+  addTimelineLink(); 
+});
