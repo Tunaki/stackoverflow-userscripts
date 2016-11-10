@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         NAA Reporter
 // @namespace    https://github.com/Tunaki/stackoverflow-userscripts
-// @version      0.1
-// @description  Adds a NAA link below answers that sends a report for NATOBot in SOBotics. Intended to be used for answers flaggable as NAA / VLQ.
+// @version      0.2
+// @description  Adds a NAA link below answers that sends a report for NATOBot in SOBotics. Intended to be used for answers flaggable as NAA / VLQ. If used with the NATO enhancement script, make sure to load it *after* this one.
 // @author       Tunaki
 // @include      /^https?:\/\/\w*.?(stackexchange.com|stackoverflow.com|serverfault.com|superuser.com|askubuntu.com|stackapps.com|mathoverflow.net)\/.*/
 // @grant        GM_xmlhttpRequest
@@ -19,7 +19,7 @@ function sendRequest(event) {
   if (!messageJSON) return;
   if (messageJSON[0] == 'postHrefReportNAA') {
     var link = messageJSON[1];
-    if (!confirm('Do you really want to report this post?')) {
+    if (!confirm('Do you really want to report this post as NAA?')) {
       return false;
     }
     var match = /(?:https?:\/\/)?(?:www\.)?(.*)\.com\/(.*)\/([0-9]+)/g.exec(link);
@@ -70,10 +70,10 @@ const ScriptToInject = function() {
     };
   };
 
-  function addReportLink(postId) {
+  function addReportNaaLink(postId) {
     var $posts;
     if(!postId) {
-      $posts = $('#answers .post-menu');
+      $posts = $('.answer .post-menu');
     } else {
       $posts = $('[data-answerid="' + postId + '"] .post-menu');
     }
@@ -82,7 +82,7 @@ const ScriptToInject = function() {
       var $postLink = $this.find('a.short-link');
       var postId = $postLink.attr('id').split('-')[2];
       $this.append($('<span>').attr('class', 'lsep').html('|'));
-      $this.append($('<a>').attr('class', 'report-link').html('NAA').click(function (e) {
+      $this.append($('<a>').attr('class', 'report-naa-link').html('NAA').click(function (e) {
           e.preventDefault();
           var href = $postLink.get(0).href;
           var messageTxt = JSON.stringify(['postHrefReportNAA', href]);
@@ -92,15 +92,16 @@ const ScriptToInject = function() {
   };
     
   addXHRListener(function(xhr) {
-    let matches = /answer" data-answerid="(\d+)/.exec(xhr.responseText);
-    if (matches === null) {
-      return;
+    if (/ajax-load-realtime/.test(xhr.responseURL)) {
+      let matches = /answer" data-answerid="(\d+)/.exec(xhr.responseText);
+      if (matches !== null) {
+        addReportNaaLink(matches[1]);
+      }
     }
-    addReportLink(matches[1]);
   });
 
   $(document).ready(function() {
-    addReportLink(); 
+    addReportNaaLink(); 
   });
 }
 
