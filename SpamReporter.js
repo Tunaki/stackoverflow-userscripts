@@ -2,7 +2,7 @@
 // @name         Spam Reporter
 // @namespace    https://github.com/Tunaki/stackoverflow-userscripts
 // @version      0.1
-// @description  Adds a report link below answers that sends a report for SmokeDetector in SOCVR. Intended to be used for spam / offensive answers.
+// @description  Adds a 'SPAM' link below answers that sends a report for SmokeDetector in SOCVR. Intended to be used for spam / offensive answers.
 // @author       Tunaki
 // @include      /^https?:\/\/\w*.?(stackexchange.com|stackoverflow.com|serverfault.com|superuser.com|askubuntu.com|stackapps.com|mathoverflow.net)\/.*/
 // @grant        GM_xmlhttpRequest
@@ -62,7 +62,7 @@ const ScriptToInject = function() {
       var $postLink = $this.find('a.short-link');
       var postId = $postLink.attr('id').split('-')[2];
       $this.append($('<span>').attr('class', 'lsep').html('|'));
-      $this.append($('<a>').attr('class', 'report-link').html('report').click(function (e) {
+      $this.append($('<a>').attr('class', 'report-link').html('SPAM').click(function (e) {
           e.preventDefault();
           var href = $postLink.get(0).href;
           var messageTxt = JSON.stringify(['postHrefReport', href]);
