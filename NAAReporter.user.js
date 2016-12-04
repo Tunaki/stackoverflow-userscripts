@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         NAA Reporter
 // @namespace    https://github.com/Tunaki/stackoverflow-userscripts
-// @version      0.3
+// @version      0.4
 // @description  Adds a NAA link below answers that sends a report for NATOBot in SOBotics. Intended to be used for answers flaggable as NAA / VLQ.
 // @author       Tunaki
 // @include      /^https?:\/\/\w*.?(stackexchange.com|stackoverflow.com|serverfault.com|superuser.com|askubuntu.com|stackapps.com|mathoverflow.net)\/.*/
@@ -35,10 +35,7 @@ function sendRequest(event) {
   if (!messageJSON) return;
   if (messageJSON[0] == 'postHrefReportNAA') {
     var link = messageJSON[1];
-    if (!confirm('Do you really want to report this post as NAA?')) {
-      return false;
-    }
-    var match = /(?:https?:\/\/)?(?:www\.)?(.*)\.com\/(.*)\/([0-9]+)/g.exec(link);
+    var match = /(?:https?:\/\/)?(?:www\.)?(.*)\.com\/(.*)(?:\/([0-9]+))?/g.exec(link);
     var sentinelUrl = 'http://www.' + match[1] + '.com/' + match[2];
     GM_xmlhttpRequest({
       method: 'GET', 
@@ -86,20 +83,27 @@ const ScriptToInject = function() {
       var postId = $postLink.attr('id').split('-')[2];
       $this.append($('<span>').attr('class', 'lsep').html('|'));
       $this.append($('<a>').attr('class', 'report-naa-link').html('NAA').click(function (e) {
-          e.preventDefault();
-          var href = $postLink.get(0).href;
-          var messageTxt = JSON.stringify(['postHrefReportNAA', href]);
-          window.postMessage(messageTxt, "*");
+        e.preventDefault();
+        if (!confirm('Do you really want to report this post as NAA?')) return false;
+        var href = 'http://stackoverflow.com/a/40961082';
+        window.postMessage(JSON.stringify(['postHrefReportNAA', href]), "*");
       }));
     });
   };
-    
+
   addXHRListener(function(xhr) {
     if (/ajax-load-realtime/.test(xhr.responseURL)) {
       let matches = /answer" data-answerid="(\d+)/.exec(xhr.responseText);
       if (matches !== null) {
         addReportNaaLink(matches[1]);
       }
+    }
+  });
+
+  addXHRListener(function(xhr) {
+    let matches = /flags\/posts\/(\d+)\/add\/(AnswerNotAnAnswer|PostLowQuality)/.exec(xhr.responseURL);
+    if (matches !== null && xhr.status === 200) {
+      window.postMessage(JSON.stringify(['postHrefReportNAA', 'http://stackoverflow.com/a/' + matches[1]]), "*");
     }
   });
 
