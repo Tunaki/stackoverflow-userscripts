@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         NAA Reporter
 // @namespace    https://github.com/Tunaki/stackoverflow-userscripts
-// @version      0.2
-// @description  Adds a NAA link below answers that sends a report for NATOBot in SOBotics. Intended to be used for answers flaggable as NAA / VLQ. If used with the NATO enhancement script, make sure to load it *after* this one.
+// @version      0.3
+// @description  Adds a NAA link below answers that sends a report for NATOBot in SOBotics. Intended to be used for answers flaggable as NAA / VLQ.
 // @author       Tunaki
 // @include      /^https?:\/\/\w*.?(stackexchange.com|stackoverflow.com|serverfault.com|superuser.com|askubuntu.com|stackapps.com|mathoverflow.net)\/.*/
 // @grant        GM_xmlhttpRequest
@@ -10,6 +10,22 @@
 // ==/UserScript==
 
 var room = 111347;
+
+function sendChatMessage(msg) {
+  GM_xmlhttpRequest({
+    method: 'GET', 
+    url: 'http://chat.stackoverflow.com/rooms/' + room, 
+    onload: function (response) {
+      var fkey = response.responseText.match(/hidden" value="([\dabcdef]{32})/)[1];
+      GM_xmlhttpRequest({
+        method: 'POST',
+        url: 'http://chat.stackoverflow.com/chats/' + room + '/messages/new',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        data: 'text=' + encodeURIComponent(msg) + '&fkey=' + fkey
+      });
+    }
+  });
+}
 
 function sendRequest(event) {
   var messageJSON;
@@ -34,23 +50,10 @@ function sendRequest(event) {
         }
         var sentinelJson = JSON.parse(sentinelResponse.responseText);
         if (sentinelJson.items.length > 0) {
-          alert('Post was already reported.');
-          return;
+          sendChatMessage('@NATOBot feedback ' + link + ' tp');
+        } else {
+          sendChatMessage('@NATOBot report ' + link);
         }
-        GM_xmlhttpRequest({
-        method: 'GET', 
-          url: 'http://chat.stackoverflow.com/rooms/' + room, 
-          onload: function (response) {
-            var fkey = response.responseText.match(/hidden" value="([\dabcdef]{32})/)[1];
-            var reportStr = '@NATOBot report ' + link;
-            GM_xmlhttpRequest({
-              method: 'POST',
-              url: 'http://chat.stackoverflow.com/chats/' + room + '/messages/new',
-              headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-              data: 'text=' + encodeURIComponent(reportStr) + '&fkey=' + fkey
-            });
-          }
-        });
       },
       onerror: function (sentinelResponse) {
         alert('Error while reporting: ' + sentinelResponse.responseText);
