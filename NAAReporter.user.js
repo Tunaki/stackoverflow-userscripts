@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         NAA Reporter
 // @namespace    https://github.com/Tunaki/stackoverflow-userscripts
-// @version      0.4
+// @version      0.5
 // @description  Adds a NAA link below answers that sends a report for NATOBot in SOBotics. Intended to be used for answers flaggable as NAA / VLQ.
 // @author       Tunaki
 // @include      /^https?:\/\/\w*.?(stackexchange.com|stackoverflow.com|serverfault.com|superuser.com|askubuntu.com|stackapps.com|mathoverflow.net)\/.*/
@@ -34,7 +34,7 @@ function sendRequest(event) {
   } catch (zError) { }
   if (!messageJSON) return;
   if (messageJSON[0] == 'postHrefReportNAA') {
-    var link = messageJSON[1];
+    var link = 'http://stackoverflow.com/a/' + messageJSON[1];
     var match = /(?:https?:\/\/)?(?:www\.)?(.*)\.com\/(.*)(?:\/([0-9]+))?/g.exec(link);
     var sentinelUrl = 'http://www.' + match[1] + '.com/' + match[2];
     GM_xmlhttpRequest({
@@ -51,6 +51,9 @@ function sendRequest(event) {
         } else {
           sendChatMessage('@NATOBot report ' + link);
         }
+        var $post = $('[data-answerid="' + messageJSON[1] + '"] .post-menu');
+        $post.append($('<span>').attr('class', 'lsep').html('|'));
+        $post.append($('<a>').attr('class', 'reported-naa').html('NAA reported!').click(function (e) { e.preventDefault(); }));
       },
       onerror: function (sentinelResponse) {
         alert('Error while reporting: ' + sentinelResponse.responseText);
@@ -70,46 +73,13 @@ const ScriptToInject = function() {
     };
   };
 
-  function addReportNaaLink(postId) {
-    var $posts;
-    if(!postId) {
-      $posts = $('.answer .post-menu');
-    } else {
-      $posts = $('[data-answerid="' + postId + '"] .post-menu');
-    }
-    $posts.each(function() {
-      var $this = $(this);
-      var $postLink = $this.find('a.short-link');
-      var postId = $postLink.attr('id').split('-')[2];
-      $this.append($('<span>').attr('class', 'lsep').html('|'));
-      $this.append($('<a>').attr('class', 'report-naa-link').html('NAA').click(function (e) {
-        e.preventDefault();
-        if (!confirm('Do you really want to report this post as NAA?')) return false;
-        var href = 'http://stackoverflow.com/a/40961082';
-        window.postMessage(JSON.stringify(['postHrefReportNAA', href]), "*");
-      }));
-    });
-  };
-
-  addXHRListener(function(xhr) {
-    if (/ajax-load-realtime/.test(xhr.responseURL)) {
-      let matches = /answer" data-answerid="(\d+)/.exec(xhr.responseText);
-      if (matches !== null) {
-        addReportNaaLink(matches[1]);
-      }
-    }
-  });
-
   addXHRListener(function(xhr) {
     let matches = /flags\/posts\/(\d+)\/add\/(AnswerNotAnAnswer|PostLowQuality)/.exec(xhr.responseURL);
     if (matches !== null && xhr.status === 200) {
-      window.postMessage(JSON.stringify(['postHrefReportNAA', 'http://stackoverflow.com/a/' + matches[1]]), "*");
+      window.postMessage(JSON.stringify(['postHrefReportNAA', matches[1]]), "*");
     }
   });
 
-  $(document).ready(function() {
-    addReportNaaLink(); 
-  });
 }
 
 const ScriptToInjectNode = document.createElement('script');
