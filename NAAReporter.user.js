@@ -1,12 +1,12 @@
 // ==UserScript==
 // @name         NAA Reporter
 // @namespace    https://github.com/Tunaki/stackoverflow-userscripts
-// @version      0.5
+// @version      0.6
 // @description  Adds a NAA link below answers that sends a report for NATOBot in SOBotics. Intended to be used for answers flaggable as NAA / VLQ.
 // @author       Tunaki
 // @include      /^https?:\/\/\w*.?(stackexchange.com|stackoverflow.com|serverfault.com|superuser.com|askubuntu.com|stackapps.com|mathoverflow.net)\/.*/
 // @grant        GM_xmlhttpRequest
-// @require      http://ajax.googleapis.com/ajax/libs/jquery/1.7.1/jquery.min.js
+// @require      http://ajax.googleapis.com/ajax/libs/jquery/1.12.4/jquery.min.js
 // ==/UserScript==
 
 var room = 111347;
@@ -34,30 +34,38 @@ function sendRequest(event) {
   } catch (zError) { }
   if (!messageJSON) return;
   if (messageJSON[0] == 'postHrefReportNAA') {
-    var link = 'http://stackoverflow.com/a/' + messageJSON[1];
-    var match = /(?:https?:\/\/)?(?:www\.)?(.*)\.com\/(.*)(?:\/([0-9]+))?/g.exec(link);
-    var sentinelUrl = 'http://www.' + match[1] + '.com/' + match[2];
-    GM_xmlhttpRequest({
-      method: 'GET', 
-      url: 'http://sentinel.erwaysoftware.com/api/posts/by_url?key=1e7cb25155eb89910e2f0cb2b3a246ef49a0658bdd014f2b53903e480287deda&url=' + encodeURIComponent(sentinelUrl),
-      onload: function (sentinelResponse) {
-        if (sentinelResponse.status !== 200) {
-          alert('Error while reporting: status ' + sentinelResponse.status);
-          return;
+    $.get('//api.stackexchange.com/2.2/answers/'+messageJSON[1]+'/questions?site=stackoverflow&key=qhq7Mdy8)4lSXLCjrzQFaQ((&filter=!)8aBxR_Gih*BsCr', function(qRes) {
+      var questionDate = qRes.items[0]['creation_date'];
+      $.get('//api.stackexchange.com/2.2/answers/'+messageJSON[1]+'?site=stackoverflow&key=qhq7Mdy8)4lSXLCjrzQFaQ((&filter=!.UE7HKkNmdOxEs-j', function(aRes) {
+        var answerDate = aRes.items[0]['creation_date'];
+        var currentDate = Date.now() / 1000;
+        // only do something when answer was posted at least 30 days after the question, and it is no more than 1 day old
+        if (Math.round((answerDate - questionDate) / (24 * 60 * 60)) >= 30 && Math.round((answerDate - currentDate) / (24 * 60 * 60)) <= 1) {
+          var link = 'http://stackoverflow.com/a/' + messageJSON[1];
+          var match = /(?:https?:\/\/)?(?:www\.)?(.*)\.com\/(.*)(?:\/([0-9]+))?/g.exec(link);
+          var sentinelUrl = 'http://www.' + match[1] + '.com/' + match[2];
+          GM_xmlhttpRequest({
+            method: 'GET', 
+            url: 'http://sentinel.erwaysoftware.com/api/posts/by_url?key=1e7cb25155eb89910e2f0cb2b3a246ef49a0658bdd014f2b53903e480287deda&url=' + encodeURIComponent(sentinelUrl),
+            onload: function (sentinelResponse) {
+              if (sentinelResponse.status !== 200) {
+                alert('Error while reporting: status ' + sentinelResponse.status);
+                return;
+              }
+              var sentinelJson = JSON.parse(sentinelResponse.responseText);
+              if (sentinelJson.items.length > 0) {
+                sendChatMessage('@NATOBot feedback ' + link + ' tp');
+              } else {
+                sendChatMessage('@NATOBot report ' + link);
+              }
+              $('[data-answerid="' + messageJSON[1] + '"] a.report-naa-link').addClass('naa-reported').click(function (e) { e.preventDefault(); }).html('NAA reported!');
+            },
+            onerror: function (sentinelResponse) {
+              alert('Error while reporting: ' + sentinelResponse.responseText);
+            }
+          });
         }
-        var sentinelJson = JSON.parse(sentinelResponse.responseText);
-        if (sentinelJson.items.length > 0) {
-          sendChatMessage('@NATOBot feedback ' + link + ' tp');
-        } else {
-          sendChatMessage('@NATOBot report ' + link);
-        }
-        var $post = $('[data-answerid="' + messageJSON[1] + '"] .post-menu');
-        $post.append($('<span>').attr('class', 'lsep').html('|'));
-        $post.append($('<a>').attr('class', 'reported-naa').html('NAA reported!').click(function (e) { e.preventDefault(); }));
-      },
-      onerror: function (sentinelResponse) {
-        alert('Error while reporting: ' + sentinelResponse.responseText);
-      }
+      });
     });
   }
 };
@@ -72,12 +80,44 @@ const ScriptToInject = function() {
       open.apply(this, arguments);
     };
   };
+  
+  function handleAnswers(postId) {
+    var $posts;
+    if(!postId) {
+      $posts = $('.answer .post-menu');
+    } else {
+      $posts = $('[data-answerid="' + postId + '"] .post-menu');
+    }
+    $posts.each(function() {
+      var $this = $(this);
+      var postId = $this.find('a.short-link').attr('id').split('-')[2];
+      $this.append($('<span>').attr('class', 'lsep').html('|'));
+      $this.append($('<a>').attr('class', 'report-naa-link').click(function (e) {
+        e.preventDefault();
+        if ($(this).hasClass('naa-reported') || !confirm('Do you really want to report this post as NAA?')) return false;
+        window.postMessage(JSON.stringify(['postHrefReportNAA', postId]), "*");
+      }).html('NAA'));
+    });
+  };
 
+  addXHRListener(function(xhr) {
+    if (/ajax-load-realtime/.test(xhr.responseURL)) {
+      let matches = /answer" data-answerid="(\d+)/.exec(xhr.responseText);
+      if (matches !== null) {
+        handleAnswers(matches[1]);
+      }
+    }
+  });
+  
   addXHRListener(function(xhr) {
     let matches = /flags\/posts\/(\d+)\/add\/(AnswerNotAnAnswer|PostLowQuality)/.exec(xhr.responseURL);
     if (matches !== null && xhr.status === 200) {
       window.postMessage(JSON.stringify(['postHrefReportNAA', matches[1]]), "*");
     }
+  });
+
+  $(document).ready(function() {
+    handleAnswers(); 
   });
 
 }
