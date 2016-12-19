@@ -45,7 +45,7 @@ function sendSentinelAndChat(answerId) {
       } else {
         sendChatMessage('@NATOBot report ' + link);
       }
-      $('[data-answerid="' + messageJSON[1] + '"] a.report-naa-link').addClass('naa-reported').click(function (e) { e.preventDefault(); }).html('NAA reported!');
+      $('[data-answerid="' + answerId + '"] a.report-naa-link').addClass('naa-reported').click(function (e) { e.preventDefault(); }).html('NAA reported!');
     },
     onerror: function (sentinelResponse) {
       alert('Error while reporting: ' + sentinelResponse.responseText);
