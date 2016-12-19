@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         NAA Reporter
 // @namespace    https://github.com/Tunaki/stackoverflow-userscripts
-// @version      0.6
+// @version      0.7
 // @description  Adds a NAA link below answers that sends a report for NATOBot in SOBotics. Intended to be used for answers flaggable as NAA / VLQ.
 // @author       Tunaki
 // @include      /^https?:\/\/\w*.?(stackexchange.com|stackoverflow.com|serverfault.com|superuser.com|askubuntu.com|stackapps.com|mathoverflow.net)\/.*/
@@ -27,6 +27,32 @@ function sendChatMessage(msg) {
   });
 }
 
+function sendSentinelAndChat(answerId) {
+  var link = 'http://stackoverflow.com/a/' + answerId;
+  var match = /(?:https?:\/\/)?(?:www\.)?(.*)\.com\/(.*)(?:\/([0-9]+))?/g.exec(link);
+  var sentinelUrl = 'http://www.' + match[1] + '.com/' + match[2];
+  GM_xmlhttpRequest({
+    method: 'GET', 
+    url: 'http://sentinel.erwaysoftware.com/api/posts/by_url?key=1e7cb25155eb89910e2f0cb2b3a246ef49a0658bdd014f2b53903e480287deda&url=' + encodeURIComponent(sentinelUrl),
+    onload: function (sentinelResponse) {
+      if (sentinelResponse.status !== 200) {
+        alert('Error while reporting: status ' + sentinelResponse.status);
+        return;
+      }
+      var sentinelJson = JSON.parse(sentinelResponse.responseText);
+      if (sentinelJson.items.length > 0) {
+        sendChatMessage('@NATOBot feedback ' + link + ' tp');
+      } else {
+        sendChatMessage('@NATOBot report ' + link);
+      }
+      $('[data-answerid="' + messageJSON[1] + '"] a.report-naa-link').addClass('naa-reported').click(function (e) { e.preventDefault(); }).html('NAA reported!');
+    },
+    onerror: function (sentinelResponse) {
+      alert('Error while reporting: ' + sentinelResponse.responseText);
+    }
+  });
+}
+
 function sendRequest(event) {
   var messageJSON;
   try {
@@ -34,38 +60,23 @@ function sendRequest(event) {
   } catch (zError) { }
   if (!messageJSON) return;
   if (messageJSON[0] == 'postHrefReportNAA') {
-    $.get('//api.stackexchange.com/2.2/answers/'+messageJSON[1]+'/questions?site=stackoverflow&key=qhq7Mdy8)4lSXLCjrzQFaQ((&filter=!)8aBxR_Gih*BsCr', function(qRes) {
-      var questionDate = qRes.items[0]['creation_date'];
-      $.get('//api.stackexchange.com/2.2/answers/'+messageJSON[1]+'?site=stackoverflow&key=qhq7Mdy8)4lSXLCjrzQFaQ((&filter=!.UE7HKkNmdOxEs-j', function(aRes) {
-        var answerDate = aRes.items[0]['creation_date'];
-        var currentDate = Date.now() / 1000;
-        // only do something when answer was posted at least 30 days after the question, and it is no more than 1 day old
-        if (Math.round((answerDate - questionDate) / (24 * 60 * 60)) >= 30 && Math.round((answerDate - currentDate) / (24 * 60 * 60)) <= 1) {
-          var link = 'http://stackoverflow.com/a/' + messageJSON[1];
-          var match = /(?:https?:\/\/)?(?:www\.)?(.*)\.com\/(.*)(?:\/([0-9]+))?/g.exec(link);
-          var sentinelUrl = 'http://www.' + match[1] + '.com/' + match[2];
-          GM_xmlhttpRequest({
-            method: 'GET', 
-            url: 'http://sentinel.erwaysoftware.com/api/posts/by_url?key=1e7cb25155eb89910e2f0cb2b3a246ef49a0658bdd014f2b53903e480287deda&url=' + encodeURIComponent(sentinelUrl),
-            onload: function (sentinelResponse) {
-              if (sentinelResponse.status !== 200) {
-                alert('Error while reporting: status ' + sentinelResponse.status);
-                return;
-              }
-              var sentinelJson = JSON.parse(sentinelResponse.responseText);
-              if (sentinelJson.items.length > 0) {
-                sendChatMessage('@NATOBot feedback ' + link + ' tp');
-              } else {
-                sendChatMessage('@NATOBot report ' + link);
-              }
-              $('[data-answerid="' + messageJSON[1] + '"] a.report-naa-link').addClass('naa-reported').click(function (e) { e.preventDefault(); }).html('NAA reported!');
-            },
-            onerror: function (sentinelResponse) {
-              alert('Error while reporting: ' + sentinelResponse.responseText);
+	$.get('//api.stackexchange.com/2.2/answers/'+messageJSON[1]+'?site=stackoverflow&key=qhq7Mdy8)4lSXLCjrzQFaQ((&filter=!.UE7HKkNmdOxEs-j', function(aRes) {
+      // answer is deleted, just report it, otherwise, check its date
+      if (aRes.items.length === 0) {
+        sendSentinelAndChat(messageJSON[1]);
+      } else {
+    	  var answerDate = aRes.items[0]['creation_date'];
+    	  var currentDate = Date.now() / 1000;
+    	  if (Math.round((answerDate - currentDate) / (24 * 60 * 60)) <= 1) {
+          $.get('//api.stackexchange.com/2.2/answers/'+messageJSON[1]+'/questions?site=stackoverflow&key=qhq7Mdy8)4lSXLCjrzQFaQ((&filter=!)8aBxR_Gih*BsCr', function(qRes) {
+            var questionDate = qRes.items[0]['creation_date'];
+            // only do something when answer is deleted or was posted at least 30 days after the question
+            if (Math.round((answerDate - questionDate) / (24 * 60 * 60)) > 30) {
+              sendSentinelAndChat(messageJSON[1]);
             }
           });
         }
-      });
+      }
     });
   }
 };
