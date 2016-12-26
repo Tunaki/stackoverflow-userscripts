@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         NAA Reporter
 // @namespace    https://github.com/Tunaki/stackoverflow-userscripts
-// @version      0.7
-// @description  Adds a NAA link below answers that sends a report for NATOBot in SOBotics. Intended to be used for answers flaggable as NAA / VLQ.
+// @version      0.8
+// @description  Adds a NAA link below answers that sends a report for Natty in SOBotics. Intended to be used for answers flaggable as NAA / VLQ.
 // @author       Tunaki
 // @include      /^https?:\/\/\w*.?(stackexchange.com|stackoverflow.com|serverfault.com|superuser.com|askubuntu.com|stackapps.com|mathoverflow.net)\/.*/
 // @grant        GM_xmlhttpRequest
@@ -41,9 +41,9 @@ function sendSentinelAndChat(answerId) {
       }
       var sentinelJson = JSON.parse(sentinelResponse.responseText);
       if (sentinelJson.items.length > 0) {
-        sendChatMessage('@NATOBot feedback ' + link + ' tp');
+        sendChatMessage('@Natty feedback ' + link + ' tp');
       } else {
-        sendChatMessage('@NATOBot report ' + link);
+        sendChatMessage('@Natty report ' + link);
       }
       $('[data-answerid="' + answerId + '"] a.report-naa-link').addClass('naa-reported').click(function (e) { e.preventDefault(); }).html('NAA reported!');
     },
