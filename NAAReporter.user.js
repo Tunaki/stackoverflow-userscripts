@@ -1,10 +1,10 @@
 // ==UserScript==
 // @name         NAA Reporter
 // @namespace    https://github.com/Tunaki/stackoverflow-userscripts
-// @version      0.8
+// @version      0.9
 // @description  Adds a NAA link below answers that sends a report for Natty in SOBotics. Intended to be used for answers flaggable as NAA / VLQ.
 // @author       Tunaki
-// @include      /^https?:\/\/\w*.?(stackexchange.com|stackoverflow.com|serverfault.com|superuser.com|askubuntu.com|stackapps.com|mathoverflow.net)\/.*/
+// @include      /^https?:\/\/\w*.?stackoverflow.com\/.*/
 // @grant        GM_xmlhttpRequest
 // @require      http://ajax.googleapis.com/ajax/libs/jquery/1.12.4/jquery.min.js
 // ==/UserScript==
@@ -60,11 +60,11 @@ function sendRequest(event) {
   } catch (zError) { }
   if (!messageJSON) return;
   if (messageJSON[0] == 'postHrefReportNAA') {
-	$.get('//api.stackexchange.com/2.2/answers/'+messageJSON[1]+'?site=stackoverflow&key=qhq7Mdy8)4lSXLCjrzQFaQ((&filter=!.UE7HKkNmdOxEs-j', function(aRes) {
-      // answer is deleted, just report it, otherwise, check its date
+	$.get('//api.stackexchange.com/2.2/posts/'+messageJSON[1]+'?site=stackoverflow&key=qhq7Mdy8)4lSXLCjrzQFaQ((&filter=!3tz1WbZYQxC_IUm7Z', function(aRes) {
+      // post is deleted, just report it (it can only be an answer since VLQ-flaggable question are only from review, thus not deleted), otherwise, check that it is really an answer and then its date
       if (aRes.items.length === 0) {
         sendSentinelAndChat(messageJSON[1]);
-      } else {
+      } else if (aRes.items[0]['post_type'] === 'answer') {
     	  var answerDate = aRes.items[0]['creation_date'];
     	  var currentDate = Date.now() / 1000;
     	  if (Math.round((answerDate - currentDate) / (24 * 60 * 60)) <= 1) {
