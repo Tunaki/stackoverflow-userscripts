@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         NAA Reporter
 // @namespace    https://github.com/Tunaki/stackoverflow-userscripts
-// @version      0.9
+// @version      0.10
 // @description  Adds a NAA link below answers that sends a report for Natty in SOBotics. Intended to be used for answers flaggable as NAA / VLQ.
 // @author       Tunaki
 // @include      /^https?:\/\/\w*.?stackoverflow.com\/.*/
@@ -60,17 +60,18 @@ function sendRequest(event) {
   } catch (zError) { }
   if (!messageJSON) return;
   if (messageJSON[0] == 'postHrefReportNAA') {
-	$.get('//api.stackexchange.com/2.2/posts/'+messageJSON[1]+'?site=stackoverflow&key=qhq7Mdy8)4lSXLCjrzQFaQ((&filter=!3tz1WbZYQxC_IUm7Z', function(aRes) {
+      $.get('//api.stackexchange.com/2.2/posts/'+messageJSON[1]+'?site=stackoverflow&key=qhq7Mdy8)4lSXLCjrzQFaQ((&filter=!3tz1WbZYQxC_IUm7Z', function(aRes) {
       // post is deleted, just report it (it can only be an answer since VLQ-flaggable question are only from review, thus not deleted), otherwise, check that it is really an answer and then its date
       if (aRes.items.length === 0) {
         sendSentinelAndChat(messageJSON[1]);
       } else if (aRes.items[0]['post_type'] === 'answer') {
-    	  var answerDate = aRes.items[0]['creation_date'];
-    	  var currentDate = Date.now() / 1000;
-    	  if (Math.round((answerDate - currentDate) / (24 * 60 * 60)) <= 1) {
+        var answerDate = aRes.items[0]['creation_date'];
+        var currentDate = Date.now() / 1000;
+        // only do something when answer was posted today
+        if (Math.round((currentDate - answerDate) / (24 * 60 * 60)) <= 1) {
           $.get('//api.stackexchange.com/2.2/answers/'+messageJSON[1]+'/questions?site=stackoverflow&key=qhq7Mdy8)4lSXLCjrzQFaQ((&filter=!)8aBxR_Gih*BsCr', function(qRes) {
             var questionDate = qRes.items[0]['creation_date'];
-            // only do something when answer is deleted or was posted at least 30 days after the question
+            // only do something when answer was posted at least 30 days after the question
             if (Math.round((answerDate - questionDate) / (24 * 60 * 60)) > 30) {
               sendSentinelAndChat(messageJSON[1]);
             }
