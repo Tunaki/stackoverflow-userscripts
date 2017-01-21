@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         NAA Reporter
+// @name         Natty Reporter
 // @namespace    https://github.com/Tunaki/stackoverflow-userscripts
-// @version      0.10
-// @description  Adds a NAA link below answers that sends a report for Natty in SOBotics. Intended to be used for answers flaggable as NAA / VLQ.
+// @version      0.11
+// @description  Adds a Natty link below answers that sends a report for the bot in SOBotics. Intended to be used to give feedback on reports (true positive / false positive / needs edit) or report NAA/VLQ-flaggable answers.
 // @author       Tunaki
 // @include      /^https?:\/\/\w*.?stackoverflow.com\/.*/
 // @grant        GM_xmlhttpRequest
@@ -11,7 +11,7 @@
 
 var room = 111347;
 
-function sendChatMessage(msg) {
+function sendChatMessage(msg, answerId) {
   GM_xmlhttpRequest({
     method: 'GET', 
     url: 'http://chat.stackoverflow.com/rooms/' + room, 
@@ -21,13 +21,16 @@ function sendChatMessage(msg) {
         method: 'POST',
         url: 'http://chat.stackoverflow.com/chats/' + room + '/messages/new',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        data: 'text=' + encodeURIComponent(msg) + '&fkey=' + fkey
+        data: 'text=' + encodeURIComponent(msg) + '&fkey=' + fkey,
+        onload: function (r) {
+          $('[data-answerid="' + answerId + '"] a.report-natty-link').addClass('natty-reported').html('Reported to Natty!');
+        }
       });
     }
   });
 }
 
-function sendSentinelAndChat(answerId) {
+function sendSentinelAndChat(answerId, feedback) {
   var link = 'http://stackoverflow.com/a/' + answerId;
   var match = /(?:https?:\/\/)?(?:www\.)?(.*)\.com\/(.*)(?:\/([0-9]+))?/g.exec(link);
   var sentinelUrl = 'http://www.' + match[1] + '.com/' + match[2];
@@ -41,11 +44,10 @@ function sendSentinelAndChat(answerId) {
       }
       var sentinelJson = JSON.parse(sentinelResponse.responseText);
       if (sentinelJson.items.length > 0) {
-        sendChatMessage('@Natty feedback ' + link + ' tp');
-      } else {
-        sendChatMessage('@Natty report ' + link);
+        sendChatMessage('@Natty feedback ' + link + ' ' + feedback, answerId);
+      } else if (feedback === 'tp') {
+        sendChatMessage('@Natty report ' + link, answerId);
       }
-      $('[data-answerid="' + answerId + '"] a.report-naa-link').addClass('naa-reported').click(function (e) { e.preventDefault(); }).html('NAA reported!');
     },
     onerror: function (sentinelResponse) {
       alert('Error while reporting: ' + sentinelResponse.responseText);
@@ -59,11 +61,11 @@ function sendRequest(event) {
     messageJSON = JSON.parse(event.data);
   } catch (zError) { }
   if (!messageJSON) return;
-  if (messageJSON[0] == 'postHrefReportNAA') {
+  if (messageJSON[0] == 'postHrefReportNatty') {
       $.get('//api.stackexchange.com/2.2/posts/'+messageJSON[1]+'?site=stackoverflow&key=qhq7Mdy8)4lSXLCjrzQFaQ((&filter=!3tz1WbZYQxC_IUm7Z', function(aRes) {
       // post is deleted, just report it (it can only be an answer since VLQ-flaggable question are only from review, thus not deleted), otherwise, check that it is really an answer and then its date
       if (aRes.items.length === 0) {
-        sendSentinelAndChat(messageJSON[1]);
+        sendSentinelAndChat(messageJSON[1], messageJSON[2]);
       } else if (aRes.items[0]['post_type'] === 'answer') {
         var answerDate = aRes.items[0]['creation_date'];
         var currentDate = Date.now() / 1000;
@@ -73,7 +75,7 @@ function sendRequest(event) {
             var questionDate = qRes.items[0]['creation_date'];
             // only do something when answer was posted at least 30 days after the question
             if (Math.round((answerDate - questionDate) / (24 * 60 * 60)) > 30) {
-              sendSentinelAndChat(messageJSON[1]);
+              sendSentinelAndChat(messageJSON[1], messageJSON[2]);
             }
           });
         }
@@ -93,6 +95,16 @@ const ScriptToInject = function() {
     };
   };
   
+  function reportToNatty(e) {
+    e.preventDefault();
+    var $this = $(this);
+    if ($this.closest('a.natty-reported').length > 0) return false;
+    var postId = $this.closest('div.post-menu').find('a.short-link').attr('id').split('-')[2];
+    var feedback = $this.text();
+    if (!confirm('Do you really want to report this post with feedback \'' + feedback + '\'?')) return false;
+    window.postMessage(JSON.stringify(['postHrefReportNatty', postId, feedback]), "*");
+  }
+  
   function handleAnswers(postId) {
     var $posts;
     if(!postId) {
@@ -102,13 +114,10 @@ const ScriptToInject = function() {
     }
     $posts.each(function() {
       var $this = $(this);
-      var postId = $this.find('a.short-link').attr('id').split('-')[2];
       $this.append($('<span>').attr('class', 'lsep').html('|'));
-      $this.append($('<a>').attr('class', 'report-naa-link').click(function (e) {
-        e.preventDefault();
-        if ($(this).hasClass('naa-reported') || !confirm('Do you really want to report this post as NAA?')) return false;
-        window.postMessage(JSON.stringify(['postHrefReportNAA', postId]), "*");
-      }).html('NAA'));
+      var $dropdown = $('<dl>').css({ 'margin': '0', 'z-index': '1', 'position': 'absolute', 'white-space': 'nowrap', 'background': '#FFF' }).hide();
+      $.each(['tp', 'fp', 'ne'], function(i, val) { $dropdown.append($('<dd>').append($('<a>').click(reportToNatty).text(val))); });
+      $this.append($('<a>').attr('class', 'report-natty-link').html('Natty').click(function(e) { e.preventDefault(); $dropdown.toggle(); return false; }).append($dropdown));
     });
   };
 
@@ -124,7 +133,7 @@ const ScriptToInject = function() {
   addXHRListener(function(xhr) {
     let matches = /flags\/posts\/(\d+)\/add\/(AnswerNotAnAnswer|PostLowQuality)/.exec(xhr.responseURL);
     if (matches !== null && xhr.status === 200) {
-      window.postMessage(JSON.stringify(['postHrefReportNAA', matches[1]]), "*");
+      window.postMessage(JSON.stringify(['postHrefReportNatty', matches[1], 'tp']), "*");
     }
   });
 
