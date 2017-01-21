@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Natty Reporter
 // @namespace    https://github.com/Tunaki/stackoverflow-userscripts
-// @version      0.11
+// @version      0.11.1
 // @description  Adds a Natty link below answers that sends a report for the bot in SOBotics. Intended to be used to give feedback on reports (true positive / false positive / needs edit) or report NAA/VLQ-flaggable answers.
 // @author       Tunaki
 // @include      /^https?:\/\/\w*.?stackoverflow.com\/.*/
@@ -117,7 +117,7 @@ const ScriptToInject = function() {
       $this.append($('<span>').attr('class', 'lsep').html('|'));
       var $dropdown = $('<dl>').css({ 'margin': '0', 'z-index': '1', 'position': 'absolute', 'white-space': 'nowrap', 'background': '#FFF' }).hide();
       $.each(['tp', 'fp', 'ne'], function(i, val) { $dropdown.append($('<dd>').append($('<a>').click(reportToNatty).text(val))); });
-      $this.append($('<a>').attr('class', 'report-natty-link').html('Natty').click(function(e) { e.preventDefault(); $dropdown.toggle(); return false; }).append($dropdown));
+      $this.append($('<a>').attr('class', 'report-natty-link').html('Natty').hover(function() { $dropdown.toggle(); }).append($dropdown));
     });
   };
 
