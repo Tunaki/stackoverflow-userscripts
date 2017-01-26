@@ -1,12 +1,13 @@
 // ==UserScript==
 // @name         Natty Reporter
 // @namespace    https://github.com/Tunaki/stackoverflow-userscripts
-// @version      0.11.3
+// @version      0.11.4
 // @description  Adds a Natty link below answers that sends a report for the bot in SOBotics. Intended to be used to give feedback on reports (true positive / false positive / needs edit) or report NAA/VLQ-flaggable answers.
 // @author       Tunaki
 // @include      /^https?:\/\/(www\.)?stackoverflow\.com\/.*/
 // @grant        GM_xmlhttpRequest
 // @require      http://ajax.googleapis.com/ajax/libs/jquery/1.12.4/jquery.min.js
+// @downloadURL  https://github.com/Tunaki/stackoverflow-userscripts/raw/master/NattyReporter.user.js
 // ==/UserScript==
 
 var room = 111347;
