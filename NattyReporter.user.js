@@ -141,7 +141,7 @@ const ScriptToInject = function() {
   
   //LQPRQ
   addXHRListener(function(xhr) {
-    let matches = /(\d+)\/(recommend-delete)/.exec(xhr.responseURL);
+    let matches = /(\d+)\/recommend-delete/.exec(xhr.responseURL);
     if (matches !== null && xhr.status === 200) {
       window.postMessage(JSON.stringify(['postHrefReportNatty', matches[1], 'tp']), "*");
     }
